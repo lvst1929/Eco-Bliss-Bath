@@ -9,6 +9,10 @@ describe("Appels API sans authentification", () => {
             url: "http://localhost:8081/orders",
             failOnStatusCode: false
 
+        }).then((response) => {
+
+            expect(response.status).to.eq(401)
+
         })
     })
 
@@ -16,6 +20,7 @@ describe("Appels API sans authentification", () => {
         cy.request({
             method: "POST",
             url: "http://localhost:8081/login",
+            failOnStatusCode: false,
             body: {
                 username: "fauxuser@faux.fr",
                 password: "fauxuser",
@@ -25,10 +30,29 @@ describe("Appels API sans authentification", () => {
 
     })
 
+    it("doit refuser l'accès au panier sans connexion", () => {
+
+        cy.request({
+            method: "GET",
+            url: "http://localhost:8081/orders",
+            failOnStatusCode: false
+
+        }).then((response) => {
+
+            expect(response.status).to.eq(401)
+
+        })
+
+    })
+
+
     it("doit retourner la fiche du produit", () => {
         cy.request({
             method: "GET",
-            url: "http://localhost:8081/products/2"
+            url: "http://localhost:8081/products/3"
+
+        }).then((response) => {
+            expect(response.status).to.eq(200)
 
         })
     })
@@ -47,6 +71,7 @@ describe("appels API avec authentification", () => {
         })
             .then((response) => {
                 token = response.body.token
+                expect(response.status).to.eq(200)
             })
 
     })
@@ -59,6 +84,8 @@ describe("appels API avec authentification", () => {
             headers: {
                 Authorization: `Bearer ${token}`
             }
+        }).then((response) => {
+            expect(response.status).to.eq(200)
         })
     })
 
@@ -75,6 +102,8 @@ describe("appels API avec authentification", () => {
                 Authorization: `Bearer ${token}`
             }
 
+        }).then((response) => {
+            expect(response.status).to.eq(200)
         })
 
     })
@@ -83,12 +112,23 @@ describe("appels API avec authentification", () => {
         cy.request({
             method: "POST",
             url: "http://localhost:8081/orders/add",
+            body: {
+                "product": 3,
+                "quantity": 3
+            },
             headers: {
                 Authorization: `Bearer ${token}`
-            }
-        })
+            },
+            failOnStatusCode: false
 
+        }).then((response) => {
+
+            expect(response.status).to.eq(405)
+
+        })
     })
+
+
 
     it("doit ajouter un avis", () => {
         cy.request({
@@ -104,8 +144,9 @@ describe("appels API avec authentification", () => {
                 Authorization: `Bearer ${token}`
             }
 
+        }).then((response) => {
+            expect(response.status).to.eq(200)
         })
     })
 
 })
-

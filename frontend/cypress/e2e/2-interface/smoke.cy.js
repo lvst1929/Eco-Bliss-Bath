@@ -50,29 +50,13 @@ describe("Smoke test page de connexion", () => {
 describe("smoke test bouton d'ajout au panier disponible si user connecté", () => {
     beforeEach(() => {
 
-        cy.visit("http://localhost:4200/#/")
-
-        // connexion utilisateur
-        //click login
-        cy.get('[data-cy ="nav-link-login"]').click()
-        //remplir email
-        cy.get('[data-cy="login-input-username"]')
-            .type("test2@test.fr")
-
-        //remplir mdp 
-        cy.get('[data-cy="login-input-password"]')
-            .type("testtest")
-        //click se connecter
-        cy.get('[data-cy="login-submit"]').click()
+        cy.login()
 
         //click sur voir les produits
         cy.contains("Voir les produits").click()
 
         //click sur consulter pour afficher le produit
-        cy.get('[data-cy="product-link"]')
-            .first()
-            .click()
-        cy.url().should("include", "/products/")
+        cy.visit("http://localhost:4200/#/products/5")
 
     })
 

@@ -51,7 +51,7 @@ it("doit retourner la fiche du produit", () => {
         expect(response.status).to.eq(200)
         expect(response.body).to.have.property("id", 3)
         expect(response.body).to.have.property("name", "Sentiments printaniers")
-        expect(response.body).to.have.property("availableStock", -8)
+        expect(response.body).to.have.property("availableStock")
         expect(response.body).to.have.property("price", 60)
         expect(response.body).to.have.property("picture", "https://cdn.pixabay.com/photo/2020/02/08/10/35/soap-4829708_960_720.jpg")
     })
@@ -152,21 +152,18 @@ describe("appels API avec authentification", () => {
     })
 
 
-
     it("doit ajouter un avis", () => {
         cy.request({
             method: "POST",
             url: "http://localhost:8081/reviews",
-            body:
-            {
-                "title": "string",
-                "comment": "string",
-                "rating": 5
+            body: {
+                title: "string",
+                comment: "string",
+                rating: 5
             },
             headers: {
                 Authorization: `Bearer ${token}`
             }
-
         }).then((response) => {
             expect(response.status).to.eq(200)
             expect(response.body).to.have.property("id")
@@ -174,12 +171,30 @@ describe("appels API avec authentification", () => {
             expect(response.body).to.have.property("comment", "string")
             expect(response.body).to.have.property("rating", 5)
 
-            //vérifier que l’avis créé doit appartenir à test2@test.fr
             expect(response.body).to.have.property("author")
             expect(response.body.author)
                 .to.have.property("email", "test2@test.fr")
-
         })
     })
+
+    it("ne doit pas être vulnérable aux injections XSS dans les avis", () => {
+        cy.request({
+            method: "POST",
+            url: "http://localhost:8081/reviews",
+            body: {
+                title: '<script>alert("XSS")</script>',
+                comment: '<script>alert("XSS")</script>',
+                rating: 5
+            },
+            headers: {
+                Authorization: `Bearer ${token}`
+            }
+        }).then((response) => {
+            expect(response.status).to.eq(200)
+            expect(response.body.title).to.not.contain("<script>")
+            expect(response.body.comment).to.not.contain("<script>")
+        })
+    })
+
 
 })

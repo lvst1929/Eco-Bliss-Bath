@@ -1,13 +1,3 @@
-/// <reference types="cypress" />
-
-declare global {
-    namespace Cypress {
-        interface Chainable {
-            login(): Chainable<void>
-        }
-    }
-}
-
 Cypress.Commands.add("login", () => {
     cy.visit("http://localhost:4200/#/")
 
@@ -16,5 +6,3 @@ Cypress.Commands.add("login", () => {
     cy.get('[data-cy="login-input-password"]').type("testtest")
     cy.get('[data-cy="login-submit"]').click()
 })
-
-export { }

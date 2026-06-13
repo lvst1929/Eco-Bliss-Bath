@@ -32,44 +32,52 @@ describe("Scénario ajout produit au panier", () => {
     })
 
 
-    it("doit empêcher l'utilisateur d'accéder au panier si il tente d'ajouter plus de 20 produits", () => {
+    it("doit empêcher l'utilisateur d'ajouter plus de 20 produits au panier", () => {
+        cy.intercept("GET", "http://localhost:8081/orders").as("getOrders")
 
-        // Accès au produit 5
-        cy.visit("http://localhost:4200/#/products/5")
-        cy.url().should("include", "/products/5")
+        cy.visit("http://localhost:4200/#/products/10")
+        cy.url().should("include", "/products/10")
 
-        // Saisir une quantité supérieure à la limite autorisée
         cy.get('[data-cy="detail-product-quantity"]')
             .clear()
             .type("21")
             .should("have.value", "21")
 
-        //ajouter au panier
         cy.get('[data-cy="detail-product-add"]')
             .click()
 
-        //l'utilisateur reste sur la fiche produit
-        cy.url().should("include", "/products/5")
+        cy.get('[data-cy="nav-link-cart"]')
+            .click()
+
+        cy.wait("@getOrders")
+
+        cy.get("body").should("not.contain", "Aurore boréale")
     })
 
-    it("doit empêcher l'utilisateur d'accéder au panier si il tente d'ajouter une quantité négative", () => {
+    it("doit empêcher l'utilisateur d'ajouter une quantité négative au panier", () => {
 
         // Accès au produit 5
         cy.visit("http://localhost:4200/#/products/5")
         cy.url().should("include", "/products/5")
 
-        // Saisir une quantité supérieure à la limite autorisée
+        // Saisir une quantité négative
         cy.get('[data-cy="detail-product-quantity"]')
             .clear()
             .type("-1")
             .should("have.value", "-1")
 
-        //ajouter au panier
+        // tenter l'ajout au panier
         cy.get('[data-cy="detail-product-add"]')
             .click()
 
-        //l'utilisateur reste sur la fiche produit
-        cy.url().should("include", "/products/5")
+        // aller vérifier le panier
+        cy.get('[data-cy="nav-link-cart"]')
+            .click()
+
+        // vérifier que le produit n'a pas été ajouté
+        cy.get("body").then(($body) => {
+            expect($body.text()).not.to.contain("Poussière de lune")
+        })
     })
 
     it("doit ajouter un produit et vérifier que le contenu du panier correspond à l'ajout", () => {

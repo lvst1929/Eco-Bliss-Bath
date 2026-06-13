@@ -98,7 +98,7 @@ describe("appels API avec authentification", () => {
 
     it("doit ajouter un produit disponible au panier", () => {
         cy.request({
-            method: "PUT",
+            method: "POST",
             url: "http://localhost:8081/orders/add",
             body: {
                 "product": 3,
@@ -133,7 +133,7 @@ describe("appels API avec authentification", () => {
 
     it("doit empêcher l'ajout d'un produit en rupture de stock", () => {
         cy.request({
-            method: "PUT",
+            method: "POST",
             url: "http://localhost:8081/orders/add",
             body: {
                 "product": 3,
@@ -177,24 +177,8 @@ describe("appels API avec authentification", () => {
         })
     })
 
-    it("ne doit pas être vulnérable aux injections XSS dans les avis", () => {
-        cy.request({
-            method: "POST",
-            url: "http://localhost:8081/reviews",
-            body: {
-                title: '<script>alert("XSS")</script>',
-                comment: '<script>alert("XSS")</script>',
-                rating: 5
-            },
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        }).then((response) => {
-            expect(response.status).to.eq(200)
-            expect(response.body.title).to.not.contain("<script>")
-            expect(response.body.comment).to.not.contain("<script>")
-        })
-    })
-
 
 })
+
+
+

@@ -5,4 +5,8 @@ Cypress.Commands.add("login", () => {
     cy.get('[data-cy="login-input-username"]').type("test2@test.fr")
     cy.get('[data-cy="login-input-password"]').type("testtest")
     cy.get('[data-cy="login-submit"]').click()
+    // attendre que la connexion soit vraiment terminée
+    cy.url().should("eq", "http://localhost:4200/#/")
+    cy.get('[data-cy="nav-link-logout"]').should("be.visible")
+
 })

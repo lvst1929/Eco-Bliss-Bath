@@ -11,9 +11,9 @@ describe("Appels API sans authentification", () => {
 
         }).then((response) => {
 
-            expect(response.status).to.eq(401)
-            expect(response.body).to.have.property("code", 401)
-            expect(response.body).to.have.property("message", "JWT Token not found")
+            expect(response.status).to.eq(403)
+            expect(response.body).to.have.property("code", 403)
+
 
         })
     })

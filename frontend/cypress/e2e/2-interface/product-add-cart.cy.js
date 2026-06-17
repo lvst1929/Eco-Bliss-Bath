@@ -1,164 +1,163 @@
 //ajout d'un produit au panier une fois connecté
 
 describe("Scénario ajout produit au panier", () => {
+
     beforeEach(() => {
         cy.login()
-
-        cy.get('[data-cy="nav-link-cart"]').click()
-
-        // vider le panier avant scenario
-        cy.get("body").then(($body) => {
-            if ($body.find('[data-cy="cart-line-delete"]').length > 0) {
-                cy.get('[data-cy="cart-line-delete"]').each(($btn) => {
-                    cy.wrap($btn).click()
-                })
-            }
-        })
     })
 
 
-
-    it("doit empêcher l'utilisateur d'ajouter un produit avec un stock négatif au panier", () => {
-        // Accès au produit 3 avec stock négatif
+    it("doit empêcher l'utilisateur d'ajouter un produit en rupture de stock au panier", () => {
         cy.visit("http://localhost:4200/#/products/3")
-        cy.url().should("include", "/products/3")
 
         cy.get('[data-cy="detail-product-add"]')
             .click()
 
-        // Vérifier que l'utilisateur reste sur la fiche produit
-        cy.url().should("include", "/products/3")
+        cy.get('[data-cy="nav-link-cart"]')
+            .click()
 
+        cy.contains("Sentiments printaniers").should("not.exist")
     })
 
 
-    it("doit empêcher l'utilisateur d'ajouter plus de 20 produits au panier", () => {
+    it("doit empêcher l'utilisateur d'ajouter une quantité supérieure à 20 au panier", () => {
         cy.intercept("GET", "http://localhost:8081/orders").as("getOrders")
 
         cy.visit("http://localhost:4200/#/products/10")
         cy.url().should("include", "/products/10")
+
+        // Attendre que le bouton soit bien disponible avant d'interagir
+        cy.get('[data-cy="detail-product-add"]').should("be.visible").and("not.be.disabled")
 
         cy.get('[data-cy="detail-product-quantity"]')
             .clear()
             .type("21")
             .should("have.value", "21")
 
-        cy.get('[data-cy="detail-product-add"]')
-            .click()
+        cy.get('[data-cy="detail-product-add"]').click()
 
-        cy.get('[data-cy="nav-link-cart"]')
-            .click()
+        cy.get('[data-cy="nav-link-cart"]').click()
+        cy.url().should("include", "/cart")
 
-        cy.wait("@getOrders")
+        cy.wait("@getOrders").then((interception) => {
+            const orderLines = interception.response.body.orderLines
 
-        cy.get("body").should("not.contain", "Aurore boréale")
+            const productLine = orderLines.find((line) => {
+                return line.product.name === "Aurore boréale"
+            })
+
+            expect(productLine).to.not.exist
+        })
     })
 
     it("doit empêcher l'utilisateur d'ajouter une quantité négative au panier", () => {
+        // pas d'interception car quand la quantité est négative, le front ne fait pas du tout d'appel à l'API
+        // Il bloque l'action côté front-end avant même d'envoyer la requête
 
-        // Accès au produit 5
-        cy.visit("http://localhost:4200/#/products/5")
-        cy.url().should("include", "/products/5")
+        cy.visit("http://localhost:4200/#/products/9")
+        cy.url().should("include", "/products/9")
 
-        // Saisir une quantité négative
         cy.get('[data-cy="detail-product-quantity"]')
             .clear()
             .type("-1")
             .should("have.value", "-1")
 
-        // tenter l'ajout au panier
-        cy.get('[data-cy="detail-product-add"]')
-            .click()
+        cy.get('[data-cy="detail-product-add"]').click()
 
-        // aller vérifier le panier
-        cy.get('[data-cy="nav-link-cart"]')
-            .click()
+        cy.get('[data-cy="nav-link-cart"]').click()
 
-        // vérifier que le produit n'a pas été ajouté
         cy.get("body").then(($body) => {
-            expect($body.text()).not.to.contain("Poussière de lune")
+            expect($body.text()).not.to.contain("Mousse de rêve")
         })
     })
 
-    it("doit ajouter un produit et vérifier que le contenu du panier correspond à l'ajout", () => {
+
+    it("doit ajouter un produit et vérifier que le contenu du panier correspond à l'ajout puis vérifier le stock", () => {
+        let initialStock
+
+        // Anomalie API : l'endpoint /orders/add utilise PUT au lieu de POST
+        cy.intercept("PUT", "http://localhost:8081/orders/add").as("addToCart")
 
         cy.visit("http://localhost:4200/#/products/5")
         cy.url().should("include", "/products/5")
 
+        // Récupérer le stock initial
         cy.get('[data-cy="detail-product-stock"]')
             .should("be.visible")
+            .invoke("text")
+            .should("match", /\d+/)
+            .then((stockText) => {
+                initialStock = parseInt(stockText.match(/\d+/)[0])
+                expect(initialStock).to.be.greaterThan(0)
+            })
 
-        cy.get('[data-cy="detail-product-add"]')
-            .click()
+        // Ajouter le produit et attendre la réponse API
+        cy.get('[data-cy="detail-product-add"]').click()
+        cy.wait("@addToCart")
+
+        // Vérifier le panier sur la bonne ligne
         cy.url().should("include", "/cart")
 
-        //vérification de l'ajout du produit au panier
-        cy.get('[data-cy="cart-line-quantity"]')
-            .should("be.visible")
-            .and("have.value", "1")
-
-        cy.get('[data-cy="cart-line-name"]')
-            .should("be.visible")
-            .and("contain", "Poussière de lune")
-
-        cy.get('[data-cy="cart-line-description"]')
+        cy.contains('[data-cy="cart-line-name"]', "Poussière de lune")
             .should("be.visible")
 
-        cy.get('[data-cy="cart-line-total"]')
-            .first()
+        cy.contains('[data-cy="cart-line-name"]', "Poussière de lune")
+            .closest('[data-cy="cart-line"]')
+            .within(() => {
+                cy.get('[data-cy="cart-line-quantity"]').should("have.value", "1")
+                cy.get('[data-cy="cart-line-description"]').should("be.visible")
+                cy.get('[data-cy="cart-line-total"]').should("be.visible")
+                cy.get('[data-cy="cart-line-image"]').should("be.visible")
+                cy.get('[data-cy="cart-line-delete"]').should("be.visible")
+            })
+
+        // Retour sur la fiche produit et vérification du stock décrémenté
+        cy.visit("http://localhost:4200/#/products/5")
+        cy.get('[data-cy="detail-product-stock"]')
             .should("be.visible")
-
-
-        cy.get('[data-cy="cart-line-image"]')
-            .should("be.visible")
-
-
-        cy.get('[data-cy="cart-line-delete"]').should("be.visible")
-
-
+            .invoke("text")
+            .should("match", /\d+/)
+            .then((newStockText) => {
+                const updatedStock = parseInt(newStockText.match(/\d+/)[0])
+                expect(updatedStock).to.eq(initialStock - 1)
+            })
     })
 
-    it("doit ajouter un produit au panier via l'API et vérifier le contenu du panier", () => {
-        cy.request({
-            method: "POST",
-            url: "http://localhost:8081/login",
-            body: {
-                username: "test2@test.fr",
-                password: "testtest"
-            }
-        }).then((loginResponse) => {
-            const token = loginResponse.body.token
+    it("doit ajouter un produit au panier via l'interface et vérifier le stock via l'API", () => {
+        let initialStock
 
-            cy.request({
-                method: "POST",
-                url: "http://localhost:8081/orders/add",
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
-                body: {
-                    product: 7,
-                    quantity: 1
-                }
+        // Anomalie API : l'endpoint /orders/add utilise PUT au lieu de POST
+        cy.intercept("PUT", "http://localhost:8081/orders/add").as("addToCart")
+
+        // 1. Aller sur la fiche produit et récupérer le stock via l'interface
+        cy.visit("http://localhost:4200/#/products/6")
+        cy.url().should("include", "/products/6")
+
+        cy.get('[data-cy="detail-product-stock"]')
+            .should("be.visible")
+            .invoke("text")
+            .should("match", /\d+/)
+            .then((stockText) => {
+                initialStock = parseInt(stockText.match(/\d+/)[0])
+                expect(initialStock).to.be.greaterThan(0)
             })
 
-            cy.request({
-                method: "GET",
-                url: "http://localhost:8081/orders",
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            }).then((ordersResponse) => {
-                const productLine = ordersResponse.body.orderLines.find((line) => {
-                    return line.product.id === 7
-                })
+        // 2. Ajouter le produit via l'interface
+        cy.get('[data-cy="detail-product-add"]')
+            .should("be.visible")
+            .and("not.be.disabled")
+            .click()
 
-                expect(productLine).to.exist
-                expect(productLine.quantity).to.eq(1)
+        // Attendre que l'ajout soit bien enregistré côté API
+        cy.wait("@addToCart")
+
+        // 3. Vérifier le stock décrémenté via l'API
+        cy.request("GET", "http://localhost:8081/products/6")
+            .then((response) => {
+                const updatedStock = response.body.availableStock
+                expect(updatedStock).to.eq(initialStock - 1)
             })
-        })
     })
 
 
 })
-
-
